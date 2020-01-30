@@ -1,6 +1,8 @@
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, GlobalAveragePooling2D, Flatten
+from tensorflow.keras.layers import *
 from tensorflow.keras import Model
+
 
 class GetModel:
 
@@ -83,27 +85,36 @@ class GetModel:
                                                 input_tensor=input_tensor, input_shape=img_shape)
             preprocess = tf.keras.applications.vgg19.preprocess_input(input_tensor)
 
+        elif self.model_name == 'Xception':
+            model = tf.keras.applications.Xception(weights=weights, include_top=include_top,
+                                                   input_tensor=input_tensor, input_shape=img_shape)
+            preprocess = tf.keras.applications.xception.preprocess_input(input_tensor)
+
         else:
             raise AttributeError("{} not found in available models".format(self.model_name))
 
         # Add a global average pooling and change the output size to our number of classes
+
         base_model = model
         base_model.trainable = False
         x = base_model.output
-        x = Flatten()(x)
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
+        x = Dropout(0.25)(x)
         out = Dense(self.classes, activation='softmax')(x)
         conv_model = Model(inputs=input_tensor, outputs=out)
 
         # Now check to see if we are retraining all but the head, or deeper down the stack
         if self.num_layers is not None:
-            for layer in base_model.layers[:self.num_layers]:
-                layer.trainable = False
-            for layer in base_model.layers[self.num_layers:]:
-                layer.trainable = True
+            base_model.trainable = True
+            if self.num_layers > 0:
+                for layer in base_model.layers[:self.num_layers]:
+                    layer.trainable = False
+                for layer in base_model.layers[self.num_layers:]:
+                    layer.trainable = True
 
         return conv_model, preprocess
 
-
+    @staticmethod
     def _get_loss(self, name):
         if name == 'BinaryCrossentropy':
             return tf.keras.losses.BinaryCrossentropy()
@@ -143,11 +154,12 @@ class GetModel:
         # Define the trainable model
         model.compile(optimizer=self._get_optimizer(optimizer, lr), loss=self._get_loss(loss_name),
                       metrics=[
-                          #tf.keras.metrics.AUC(curve='PR', num_thresholds=10, name='PR'),
-                          #tf.keras.metrics.AUC(num_thresholds=10, name='AUC'),
-                          tf.keras.metrics.Accuracy(name='Accuracy'),
-                          tf.keras.metrics.CategoricalAccuracy(name='CategoricalAccuracy'),
-                          #tf.keras.metrics.BinaryAccuracy(name='BinaryAccuracy')
+                          # tf.keras.metrics.AUC(curve='PR', num_thresholds=10, name='PR'),
+                          tf.keras.metrics.AUC(name='AUC'),
+                          tf.keras.metrics.AUC(curve='PR', name='PR'),
+                          tf.keras.metrics.Accuracy(name='accuracy'),
+                          # tf.keras.metrics.CategoricalAccuracy(name='CategoricalAccuracy'),
+                          tf.keras.metrics.BinaryAccuracy(name='BinaryAccuracy')
                       ])
 
         return model

@@ -2,17 +2,31 @@
 <project version="4">
   <component name="PublishConfigData" autoUpload="Always" serverName="m087494@rcfgpu02:22">
     <serverData>
-      <paths name="Copy of project-level server 'cytomine'">
+      <paths name="dsvm">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/mfad.mfroot.org/m087494/Desktop/General-ImageClassifier" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="m087494@172.22.65.57:22">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="dsvm">
+      <paths name="m087494@172.22.65.57:22 (1)">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/mfad.mfroot.org/m087494/Desktop/General-ImageClassifier" local="$PROJECT_DIR$" web="/" />
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="m087494@172.22.65.57:22 (2)">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
