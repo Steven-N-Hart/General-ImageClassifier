@@ -78,7 +78,7 @@ parser.add_argument("-L", "--loss-function",
                     default='BinaryCrossentropy',
                     choices=['SparseCategoricalCrossentropy',
                              'CategoricalCrossentropy',
-                             'BinaryCrossentropy'],
+                             'BinaryCrossentropy','Hinge'],
                     help="Loss functions from tf.keras")
 
 parser.add_argument("-e", "--num-epochs",
@@ -112,6 +112,11 @@ parser.add_argument("-F", "--filetype",
                     choices=['tfrecords', 'images'],
                     default="images",
                     help="Set the logging level")
+
+parser.add_argument("-D", "--drop_out",
+                    dest="reg_drop_out_per",
+                    default=None,type=float,
+                    help="Regulrization drop out percent 0-1")
 
 parser.add_argument("--tfrecord_image",
                     dest="tfrecord_image",
@@ -224,6 +229,24 @@ if not os.path.exists(out_dir):
 checkpoint_path = os.path.join(out_dir, "cp-{epoch:04d}.ckpt")
 checkpoint_dir = os.path.dirname(checkpoint_path)
 
+
+reg_drop_out_per=None
+if args.reg_drop_out_per is not None:
+    reg_drop_out_per=args.reg_drop_out_per
+	
+num_layers=None
+if args.train_num_layers is not None:
+    num_layers=args.train_num_layers
+#print(args.prev_checkpoint)
+#
+# if args.prev_checkpoint:
+#     print(args.prev_checkpoint)
+#     latest_prev = tf.train.latest_checkpoint(args.prev_checkpoint)
+#     print(latest_prev)
+# sys.exit(0)
+
+# I now have generators for training and validation
+
 ###############################################################################
 # Build the model
 ###############################################################################
@@ -232,14 +255,17 @@ logger.debug('Mirror initialized')
 GPU = True
 if GPU is True:
     # This must be fixed for multi-GPU
-    mirrored_strategy = tf.distribute.MirroredStrategy()
+
+    #mirrored_strategy = tf.distribute.MirroredStrategy()
+    mirrored_strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
+    #mirrored_strategy = tf.distribute.MirroredStrategy(cross_device_ops=tf.distribute.HierarchicalCopyAllReduce())
     with mirrored_strategy.scope():
-        if args.train_num_layers:
-            m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes,
-                         num_layers=int(args.train_num_layers))
-        else:
-            m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes)
-        # logger.debug('Model constructed')
+        #if args.train_num_layers:
+        m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes, num_layers=num_layers, reg_drop_out_per=reg_drop_out_per)
+        #else:
+        #    m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes, reg_drop_out_per=reg_drop_out_per)
+        #logger.debug('Model constructed')
+
         model = m.compile_model(args.optimizer, args.lr, args.loss_function)
         # inside scope
         logger.debug('Model compiled')
@@ -272,11 +298,12 @@ if GPU is True:
               )
     model.save(os.path.join(out_dir, 'my_model.h5'))
 else:
-    if args.train_num_layers:
-        m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes,
-                     num_layers=int(args.train_num_layers))
-    else:
-        m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes)
+    #if args.train_num_layers:
+    #    m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes,
+    #                 num_layers=int(args.train_num_layers))
+    #else:
+    #    m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes)
+    m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes, num_layers=num_layers, reg_drop_out_per=reg_drop_out_per)     
     logger.debug('Model constructed')
     model = m.compile_model(args.optimizer, args.lr, args.loss_function)
     logger.debug('Model compiled')
