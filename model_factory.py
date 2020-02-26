@@ -2,8 +2,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, GlobalAveragePooling2D, Flatten
 from tensorflow.keras.layers import *
 from tensorflow.keras import Model
-
-#from tensorflow.keras import models
+from tensorflow.keras import regularizers
 import logging
 import sys
 
@@ -12,9 +11,6 @@ logging.basicConfig(stream=sys.stderr, level="DEBUG",
 
 logger = logging.getLogger(__name__)
 logger.setLevel('DEBUG')
-
-
-
 
 class GetModel:
 
@@ -100,7 +96,7 @@ class GetModel:
 
         elif self.model_name == 'Xception':
             model = tf.keras.applications.Xception(weights=weights, include_top=include_top,
-                                                   input_tensor=input_tensor, input_shape=img_shape)
+                                                input_tensor=input_tensor, input_shape=img_shape)
             preprocess = tf.keras.applications.xception.preprocess_input(input_tensor)
 
         else:
@@ -111,19 +107,25 @@ class GetModel:
         base_model = model
         base_model.trainable = False
         x = base_model.output
+        #
+        #out = Dense(self.classes, activation='softmax')(x)
+        #conv_model = Model(inputs=input_tensor, outputs=out)
+        #Naresh: modified
         x = GlobalAveragePooling2D(name='avg_pool')(x)
-
+        x = Flatten()(x)
         if self.reg_drop_out_per is not None:		
             x = Dropout(self.reg_drop_out_per)(x)
             logger.debug('drop applied '+str(self.reg_drop_out_per))
-
-        out = Dense(self.classes, activation='softmax')(x)
+            #out = Dense(self.classes, kernel_regularizer=regularizers.l2(0.0001), activation='softmax')(x)
+            out = Dense(self.classes, activation='softmax')(x)
+        else:
+            out = Dense(self.classes, activation='softmax')(x)    
         conv_model = Model(inputs=input_tensor, outputs=out)
 
         # Now check to see if we are retraining all but the head, or deeper down the stack
         if self.num_layers is not None:
-            base_model.trainable = True
-            if self.num_layers > 0:
+            base_model.trainable = True     		
+            if self.num_layers>0:		
                 for layer in base_model.layers[:self.num_layers]:
                     layer.trainable = False
                 for layer in base_model.layers[self.num_layers:]:
@@ -131,7 +133,7 @@ class GetModel:
 
         return conv_model, preprocess
 
-    @staticmethod
+
     def _get_loss(self, name):
         if name == 'BinaryCrossentropy':
             return tf.keras.losses.BinaryCrossentropy()
@@ -173,11 +175,11 @@ class GetModel:
         # Define the trainable model
         model.compile(optimizer=self._get_optimizer(optimizer, lr), loss=self._get_loss(loss_name),
                       metrics=[
-                          # tf.keras.metrics.AUC(curve='PR', num_thresholds=10, name='PR'),
-                          tf.keras.metrics.AUC(name='AUC'),
-                          tf.keras.metrics.AUC(curve='PR', name='PR'),
+                          #tf.keras.metrics.AUC(curve='PR', num_thresholds=10, name='PR'),
+                          tf.keras.metrics.AUC( name='AUC'),
+                          tf.keras.metrics.AUC( curve='PR',name='PR'),
                           tf.keras.metrics.Accuracy(name='accuracy'),
-                          # tf.keras.metrics.CategoricalAccuracy(name='CategoricalAccuracy'),
+                          #tf.keras.metrics.CategoricalAccuracy(name='CategoricalAccuracy'),
                           tf.keras.metrics.BinaryAccuracy(name='BinaryAccuracy')
                       ])
 
