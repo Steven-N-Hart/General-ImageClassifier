@@ -1,5 +1,5 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, GlobalAveragePooling2D, Flatten
+from tensorflow.keras.layers import Input, Dense, GlobalAveragePooling2D, Flatten, GlobalMaxPooling2D, AveragePooling2D
 from tensorflow.keras.layers import *
 from tensorflow.keras import Model
 from tensorflow.keras import regularizers
@@ -82,7 +82,12 @@ class GetModel:
             model = tf.keras.applications.ResNet50(weights=weights, include_top=include_top,
                                                    input_tensor=input_tensor, input_shape=img_shape)
             preprocess = tf.keras.applications.resnet50.preprocess_input(input_tensor)
-
+        
+        elif self.model_name == 'ResNet152':
+            model = tf.keras.applications.ResNet152(weights=weights, include_top=include_top,
+                                                   input_tensor=input_tensor, input_shape=img_shape)
+            preprocess = tf.keras.applications.resnet.preprocess_input(input_tensor)
+        
         elif self.model_name == 'VGG16':
             print('Model loaded was VGG16')
             model = tf.keras.applications.VGG16(weights=weights, include_top=include_top,
@@ -106,30 +111,44 @@ class GetModel:
 
         base_model = model
         base_model.trainable = False
-        x = base_model.output
-        #
-        #out = Dense(self.classes, activation='softmax')(x)
-        #conv_model = Model(inputs=input_tensor, outputs=out)
-        #Naresh: modified
-        x = GlobalAveragePooling2D(name='avg_pool')(x)
-        x = Flatten()(x)
-        if self.reg_drop_out_per is not None:		
-            x = Dropout(self.reg_drop_out_per)(x)
-            logger.debug('drop applied '+str(self.reg_drop_out_per))
-            #out = Dense(self.classes, kernel_regularizer=regularizers.l2(0.0001), activation='softmax')(x)
-            out = Dense(self.classes, activation='softmax')(x)
-        else:
-            out = Dense(self.classes, activation='softmax')(x)    
-        conv_model = Model(inputs=input_tensor, outputs=out)
-
+        
         # Now check to see if we are retraining all but the head, or deeper down the stack
         if self.num_layers is not None:
-            base_model.trainable = True     		
+            #base_model.trainable = True
+            if self.num_layers==0:
+                for layer in base_model.layers:
+                    layer.trainable = True
             if self.num_layers>0:		
                 for layer in base_model.layers[:self.num_layers]:
                     layer.trainable = False
                 for layer in base_model.layers[self.num_layers:]:
                     layer.trainable = True
+                    
+        x = base_model.output
+        #
+        #out = Dense(self.classes, activation='softmax')(x)
+        #conv_model = Model(inputs=input_tensor, outputs=out)
+        #Naresh: modified
+        #x =AveragePooling2D(pool_size=8)(x)
+        x = GlobalAveragePooling2D(name='avg_pool')(x)
+        x = Flatten()(x)
+        #x = Dropout(0.5)(x)
+        #x = Dense(1024, activation='relu', kernel_regularizer=regularizers.l2(5e-4))(x)
+        #x = Dropout(0.5)(x)    
+        if self.reg_drop_out_per is not None:		
+            x = Dropout(self.reg_drop_out_per)(x)
+            logger.debug('drop applied '+str(self.reg_drop_out_per))
+            #out = Dense(self.classes, kernel_regularizer=regularizers.l2(0.0001), activation='softmax')(x)
+            out = Dense(self.classes, activation='softmax', kernel_initializer='he_normal')(x)
+        else:
+            out = Dense(self.classes, activation='softmax', kernel_initializer='he_normal')(x)    
+        conv_model = Model(inputs=input_tensor, outputs=out)
+
+
+        
+        
+
+
 
         return conv_model, preprocess
 
@@ -178,7 +197,7 @@ class GetModel:
                           #tf.keras.metrics.AUC(curve='PR', num_thresholds=10, name='PR'),
                           tf.keras.metrics.AUC( name='AUC'),
                           tf.keras.metrics.AUC( curve='PR',name='PR'),
-                          tf.keras.metrics.Accuracy(name='accuracy'),
+                          #tf.keras.metrics.Accuracy(name='accuracy'),
                           #tf.keras.metrics.CategoricalAccuracy(name='CategoricalAccuracy'),
                           tf.keras.metrics.BinaryAccuracy(name='BinaryAccuracy')
                       ])

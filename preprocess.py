@@ -90,21 +90,18 @@ def format_example(image_name=None, img_size=256):
     global status
     train = status 	
     image = tf.io.read_file(image_name)
-    image = tf.io.decode_jpeg(image)
-    image = tf.cast(image, tf.float32)
-    image = tf.image.per_image_standardization(image)
+    image = tf.io.decode_jpeg(image, channels=3)
+    image = tf.cast(image, tf.float32)/255
+    #image = tf.image.per_image_standardization(image)
     image = tf.image.resize(image, (img_size, img_size))
-
+    
     if train is True:
         image = tf.image.random_flip_left_right(image)
-        image = tf.image.random_brightness(image, max_delta=0.12)
-        image = tf.image.random_contrast(image, lower=0.5, upper=1.5)
+        image = tf.image.random_brightness(image, max_delta=0.2)
+        image = tf.image.random_contrast(image, lower=0.0, upper=0.1)
         image = tf.image.random_flip_up_down(image)
         image = tf.image.random_hue(image, max_delta=0.2)
-        image = tf.image.random_saturation(image, lower=0.5, upper=1.5)
-        image = tf.image.random_jpeg_quality(image, min_jpeg_quality=20, max_jpeg_quality=90)
-        image = tf.keras.preprocessing.image.random_shear(image, 0.2, row_axis=0, col_axis=1, channel_axis=2)
-        image = tf.keras.preprocessing.image.random_zoom(image,  0.9, row_axis=0, col_axis=1, channel_axis=2)		
+
     image = tf.reshape(image, (img_size, img_size, 3))
 
     return image
@@ -129,9 +126,11 @@ def format_example_tf(tfrecord_proto, img_size=256):
     label = parsed_image_dataset[tf_label]
     label = tf.dtypes.cast(label, tf.uint8)
     label = tf.one_hot(label, 2) 	
-    image = tf.io.decode_png(image, channels=3)
-    image = tf.cast(image, tf.float32)
-    image = tf.image.per_image_standardization(image)
+    #image = tf.io.decode_png(image, channels=3)
+    #image = tf.cast(image, tf.float32)
+    image = tf.io.decode_jpeg(image, channels=3)
+    image = tf.cast(image, tf.float32)/255
+    #image = tf.image.per_image_standardization(image)
     image = tf.image.resize(image, (img_size, img_size))
 
     if train is True:

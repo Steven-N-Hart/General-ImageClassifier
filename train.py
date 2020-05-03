@@ -41,6 +41,7 @@ parser.add_argument("-m", "--model-name",
                              'NASNetLarge',
                              'NASNetMobile',
                              'ResNet50',
+                             'ResNet152',
                              'VGG16',
                              'VGG19',
                              'Xception'],
@@ -174,7 +175,7 @@ if train_data.filetype!="tfrecords":
     t_image_ds = t_path_ds.map(format_example, num_parallel_calls=AUTOTUNE)
     t_label_ds = tf.data.Dataset.from_tensor_slices(tf.cast(train_data.labels, tf.int64))
     t_image_label_ds = tf.data.Dataset.zip((t_image_ds, t_label_ds))
-    train_ds = t_image_label_ds.shuffle(buffer_size=train_data.min_images).repeat()
+    #train_ds = t_image_label_ds.shuffle(buffer_size=train_data.min_images).repeat()
 else:
     t_path_ds = tf.data.TFRecordDataset(train_data.files)
     t_image_ds = t_path_ds.map(format_example_tf, num_parallel_calls=AUTOTUNE)
@@ -188,11 +189,13 @@ else:
     train_data.min_images=num_image
     t_image_label_ds = tf.data.Dataset.zip(t_image_ds)
     #naresh:adding these additional steps to avoid shuffling on images and shuffle on imagepaths
-    t_image_ds = t_path_ds.shuffle(buffer_size=train_data.min_images).repeat().map(format_example_tf, num_parallel_calls=AUTOTUNE)
-    train_ds = tf.data.Dataset.zip(t_image_ds)
+    #t_image_ds = t_path_ds.shuffle(buffer_size=train_data.min_images).repeat()
+    #train_ds = tf.data.Dataset.zip(t_image_ds)
+    #train_ds = t_image_label_ds.shuffle(buffer_size=train_data.min_images).repeat()
+train_ds = t_image_label_ds.shuffle(buffer_size=train_data.min_images)
 
 #train_ds = t_image_label_ds.shuffle(buffer_size=train_data.min_images).repeat()
-train_ds = train_ds.batch(args.BATCH_SIZE).prefetch(buffer_size=AUTOTUNE)
+train_ds = train_ds.repeat().batch(args.BATCH_SIZE).prefetch(buffer_size=AUTOTUNE)
 training_steps = int(train_data.min_images / args.BATCH_SIZE)
 logger.debug('Completed Training dataset')
 
@@ -215,13 +218,20 @@ if args.image_dir_validation:
         num_image=0
         for image, label in v_image_ds:
             num_image=num_image+1
-        #print(num_image)
-        #sys.exit(0)
         validation_data.min_images=num_image
         v_image_label_ds = tf.data.Dataset.zip(v_image_ds)
-	
-    validation_ds = v_image_label_ds.shuffle(buffer_size=validation_data.min_images).repeat()
-    validation_ds = validation_ds.batch(args.BATCH_SIZE).prefetch(buffer_size=AUTOTUNE)
+
+    validation_ds = v_image_label_ds.shuffle(buffer_size=validation_data.min_images)
+    #num_img=0
+    #for image, label in validation_ds:
+        #print("Image shape: ", image.numpy().shape)   
+        #print("Label: ", label.numpy().shape)
+        #print("Label: ", label.numpy())
+        #num_img=num_img+1
+    #print(num_img)
+    #sys.exit(0)
+    
+    validation_ds = validation_ds.repeat().batch(args.BATCH_SIZE).prefetch(buffer_size=AUTOTUNE)
     validation_steps = int(validation_data.min_images / args.BATCH_SIZE)
     logger.debug('Completed Validation dataset')
 
@@ -244,23 +254,7 @@ if args.reg_drop_out_per is not None:
 num_layers=None
 if args.train_num_layers is not None:
     num_layers=int(args.train_num_layers)
-#print(args.prev_checkpoint)
-#
-# if args.prev_checkpoint:
-#     print(args.prev_checkpoint)
-#     latest_prev = tf.train.latest_checkpoint(args.prev_checkpoint)
-#     print(latest_prev)
-# sys.exit(0)
 
-# I now have generators for training and validation
-
-###############################################################################
-# Build the model
-###############################################################################
-
-#print(args.train_num_layers)
-#sys.exit(0)
-#mirrored_strategy = tf.distribute.experimental.MultiWorkerMirroredStrategy()
 logger.debug('Mirror initialized')
 GPU = True
 if GPU is True:
@@ -274,7 +268,10 @@ if GPU is True:
         #else:
         #    m = GetModel(model_name=args.model_name, img_size=args.patch_size, classes=train_data.classes, reg_drop_out_per=reg_drop_out_per)
         #logger.debug('Model constructed')
+        
         model = m.compile_model(args.optimizer, args.lr, args.loss_function)
+        #print(model.summary())
+        #sys.exit(0)
         #inside scope
         logger.debug('Model compiled')
         latest = tf.train.latest_checkpoint(checkpoint_dir)
@@ -342,56 +339,3 @@ else:
               use_multiprocessing=args.use_multiprocessing,
               shuffle=False,initial_epoch=ini_epoch)
     model.save(os.path.join(out_dir, 'my_model.h5'))
-
-#out_dir = os.path.join(args.log_dir, args.model_name + '_' + args.optimizer + '_' + str(args.lr) + '-' + args.loss_function)
-#if not os.path.exists(out_dir):
-#    os.makedirs(out_dir)
-
-# restore weights if they already exist
-
-#checkpoint_path = os.path.join(out_dir, "cp-{epoch:04d}.ckpt")
-#checkpoint_dir = os.path.dirname(checkpoint_path)
-# files = glob.glob(out_dir+"/*.ckpt") 
-# if len(files) == 0:  
-    # files.sort(key=os.path.getmtime)
-    # checkpoint_path = files[0]
-    # checkpoint_dir = os.path.dirname(checkpoint_path)
-# else:
-    # checkpoint_dir = out_dir
-#with mirrored_strategy.scope():
-#    model.save_weights(checkpoint_path.format(epoch=0))
-#    latest = tf.train.latest_checkpoint(checkpoint_dir)
-#   logger.debug('Loading initialized model')
-#    model.load_weights(latest)
-#logger.debug('Completed loading initialized model')
-
-###############################################################################
-# Define callbacks
-###############################################################################
-#cb = CallBacks(learning_rate=args.lr, log_dir=out_dir, optimizer=args.optimizer)
-
-#tf.keras.utils.plot_model(model, to_file=os.path.join(out_dir, 'model.png'), show_shapes=True, show_layer_names=True)
-#logger.debug('Model image saved')
-#print(validation_steps)
-#print(training_steps)
-#print(train_data.min_images)
-#print(args.BATCH_SIZE)
-#sys.exit(0)
-###############################################################################
-# Run the training
-###############################################################################
-
-# model.fit(train_ds,
-#           steps_per_epoch=training_steps,
-#           epochs=args.num_epochs,
-#           callbacks=cb.get_callbacks(),
-#           validation_data=validation_ds,
-#           validation_steps=validation_steps,
-#           class_weight=None,
-#           max_queue_size=1000,
-#           workers=args.NUM_WORKERS,
-#           use_multiprocessing=args.use_multiprocessing,
-#           shuffle=False,
-#           initial_epoch=0
-#           )
-# model.save(os.path.join(out_dir, 'my_model.h5'))
