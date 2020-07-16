@@ -14,17 +14,17 @@ class CallBacks:
     def _get_tb(self):
         return tf.keras.callbacks.TensorBoard(log_dir=self.log_dir,
                                               histogram_freq=1,
-                                              write_graph=True,
-                                              update_freq='epoch',
+                                              #write_graph=True,
+                                              #update_freq='batch',
                                               write_images=False)
 
     def _get_cp(self):
-        return tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(self.log_dir, 'cp-{epoch:04d}.ckpt'), verbose=1,  save_weights_only=True,save_frequency=1)
+        return tf.keras.callbacks.ModelCheckpoint(filepath=os.path.join(self.log_dir, 'cp-{epoch:04d}.ckpt'), verbose=1)
         #save_weights_only=True,period=1,save_best_only=True) #save_best_only=True)
 
     @staticmethod
     def _get_es():
-        return tf.keras.callbacks.EarlyStopping(monitor='loss', patience=30)
+        return tf.keras.callbacks.EarlyStopping(monitor='loss', patience=3)
     
     def _get_grad_cam(self):
         output_dir=os.path.join(self.log_dir, 'output_gradcam')
@@ -34,4 +34,4 @@ class CallBacks:
         
     def get_callbacks(self):
         #self._get_grad_cam()
-        return [self._get_tb(), self._get_cp(), self._get_es()]
+        return [self._get_tb(), self._get_cp()]
